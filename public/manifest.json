@@ -1,0 +1,27 @@
+{
+  "name": "MangaVerse",
+  "short_name": "MangaVerse",
+  "description": "Leia qualquer mangá onde quiser. Busque, leia e acompanhe seus títulos favoritos via MangaDex.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0D0D0F",
+  "theme_color": "#E040FB",
+  "lang": "pt-BR",
+  "scope": "/",
+  "categories": ["entertainment", "books"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
