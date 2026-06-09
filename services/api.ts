@@ -1,8 +1,9 @@
 import axios from "axios";
 
+// Em produção, defina EXPO_PUBLIC_API_URL com a URL do Railway (ex: https://xxx.up.railway.app)
 const API_BASE = __DEV__
   ? "http://localhost:3000/api/v1"
-  : "https://your-production-domain.com/api/v1";
+  : `${process.env.EXPO_PUBLIC_API_URL}/api/v1`;
 
 export const api = axios.create({
   baseURL: API_BASE,

@@ -3,23 +3,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { getChapter, getMdexChapter } from "@/services/api";
+import { getChapter, getMdexChapter, getMdexManga } from "@/services/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface Page {
   id?: number;
   number: number;
-  image_url?: string | null;  // local
-  filename?: string;          // MangaDex
-  image_url_mdex?: string;    // normalizado abaixo
+  image_url?: string | null;
+  filename?: string;
 }
 
 function normalizePages(data: any, source: string): Page[] {
   if (source === "mdex") {
     return (data?.pages ?? []).map((p: any) => ({
       number:    p.number,
-      image_url: p.image_url,   // já montado pelo Rails: baseUrl/data/hash/filename
+      image_url: p.image_url,
     }));
   }
   return data?.pages ?? [];
@@ -39,6 +38,22 @@ export default function ChapterReaderScreen() {
     queryFn:  () => isMdex ? getMdexChapter(id!) : getChapter(mangaId!, id!),
     enabled:  !!id,
   });
+
+  // Busca a lista de capítulos do mangá para derivar prev/next.
+  // Normalmente é cache hit pois o usuário veio da tela de detalhe.
+  const { data: mangaData } = useQuery({
+    queryKey: ["manga", mangaId],
+    queryFn:  () => getMdexManga(mangaId!),
+    enabled:  isMdex && !!mangaId,
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const mdexChapters: any[] = mangaData?.chapters ?? [];
+  const currentIndex = mdexChapters.findIndex((ch: any) => String(ch.id) === String(id));
+  const prevMdexChapter = currentIndex > 0 ? mdexChapters[currentIndex - 1] : null;
+  const nextMdexChapter = currentIndex >= 0 && currentIndex < mdexChapters.length - 1
+    ? mdexChapters[currentIndex + 1]
+    : null;
 
   if (isLoading) {
     return (
@@ -61,11 +76,43 @@ export default function ChapterReaderScreen() {
 
   const pages: Page[] = normalizePages(chapter, source ?? "local");
 
+  const currentMdexChapter = currentIndex >= 0 ? mdexChapters[currentIndex] : null;
   const chapterLabel = isMdex
-    ? `Cap. ${chapter.chapter_id ?? id}`
+    ? `Cap. ${currentMdexChapter?.chapter ?? id}`
     : `Cap. ${chapter.number}`;
 
   const mangaTitle = isMdex ? "" : (chapter.manga_title ?? "");
+
+  const hasPrev = isMdex ? !!prevMdexChapter : !!chapter.prev_chapter_id;
+  const hasNext = isMdex ? !!nextMdexChapter : !!chapter.next_chapter_id;
+
+  function goToPrev() {
+    if (isMdex && prevMdexChapter) {
+      router.replace({
+        pathname: "/chapter/[id]",
+        params: { id: String(prevMdexChapter.id), mangaId: String(mangaId), source: "mdex" },
+      });
+    } else if (!isMdex && chapter.prev_chapter_id) {
+      router.replace({
+        pathname: "/chapter/[id]",
+        params: { id: String(chapter.prev_chapter_id), mangaId: String(chapter.manga_id), source: "local" },
+      });
+    }
+  }
+
+  function goToNext() {
+    if (isMdex && nextMdexChapter) {
+      router.replace({
+        pathname: "/chapter/[id]",
+        params: { id: String(nextMdexChapter.id), mangaId: String(mangaId), source: "mdex" },
+      });
+    } else if (!isMdex && chapter.next_chapter_id) {
+      router.replace({
+        pathname: "/chapter/[id]",
+        params: { id: String(chapter.next_chapter_id), mangaId: String(chapter.manga_id), source: "local" },
+      });
+    }
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
@@ -118,42 +165,22 @@ export default function ChapterReaderScreen() {
         />
       )}
 
-      {/* Bottom navigation (só para catálogo local — MangaDex não retorna prev/next) */}
-      {!isMdex && (
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            padding: 16,
-            backgroundColor: "rgba(0,0,0,0.85)",
-          }}
-        >
-          <Pressable
-            disabled={!chapter.prev_chapter_id}
-            onPress={() =>
-              router.replace({
-                pathname: "/chapter/[id]",
-                params: { id: String(chapter.prev_chapter_id), mangaId: String(chapter.manga_id), source: "local" },
-              })
-            }
-            style={{ opacity: chapter.prev_chapter_id ? 1 : 0.3 }}
-          >
-            <Text style={{ color: "#E040FB", fontSize: 14 }}>← Anterior</Text>
-          </Pressable>
-          <Pressable
-            disabled={!chapter.next_chapter_id}
-            onPress={() =>
-              router.replace({
-                pathname: "/chapter/[id]",
-                params: { id: String(chapter.next_chapter_id), mangaId: String(chapter.manga_id), source: "local" },
-              })
-            }
-            style={{ opacity: chapter.next_chapter_id ? 1 : 0.3 }}
-          >
-            <Text style={{ color: "#E040FB", fontSize: 14 }}>Próximo →</Text>
-          </Pressable>
-        </View>
-      )}
+      {/* Navegação prev/next — funciona para local e MangaDex */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          padding: 16,
+          backgroundColor: "rgba(0,0,0,0.85)",
+        }}
+      >
+        <Pressable disabled={!hasPrev} onPress={goToPrev} style={{ opacity: hasPrev ? 1 : 0.3 }}>
+          <Text style={{ color: "#E040FB", fontSize: 14 }}>← Anterior</Text>
+        </Pressable>
+        <Pressable disabled={!hasNext} onPress={goToNext} style={{ opacity: hasNext ? 1 : 0.3 }}>
+          <Text style={{ color: "#E040FB", fontSize: 14 }}>Próximo →</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
