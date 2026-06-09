@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -12,9 +13,27 @@ const queryClient = new QueryClient({
   },
 });
 
+function useIsStandalone() {
+  // null = ainda detectando, true = PWA instalado, false = browser comum
+  const [isStandalone, setIsStandalone] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as any).standalone === true;
+    setIsStandalone(standalone);
+  }, []);
+
+  return isStandalone;
+}
+
 export default function RootLayout() {
+  const isStandalone = useIsStandalone();
+
   if (Platform.OS === "web") {
-    return <WebLandingPage />;
+    if (isStandalone === null) return null; // detectando modo (um frame)
+    if (!isStandalone) return <WebLandingPage />;
+    // standalone: cai no app normal abaixo
   }
 
   return (
