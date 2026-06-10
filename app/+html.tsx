@@ -19,6 +19,10 @@ export default function Root({ children }: PropsWithChildren) {
         {/* PWA - Web App Manifest */}
         <link rel="manifest" href="/manifest.json" />
 
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon-192.png" type="image/png" />
+
         {/* PWA - iOS / Safari */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
