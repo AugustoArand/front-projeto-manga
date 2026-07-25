@@ -260,48 +260,73 @@ function HeroSection({
               flex: 1,
               backgroundColor: C.pinkBg,
               borderRadius: 14,
-              padding: 13,
-              justifyContent: "space-between",
+              overflow: "hidden",
             }}
           >
-            <Text
-              style={{
-                color: C.pink,
-                fontSize: 9,
-                fontWeight: "900",
-                letterSpacing: 1.5,
-                textTransform: "uppercase",
-              }}
-            >
-              Continue
-            </Text>
-            <View>
-              <Text
-                numberOfLines={2}
-                style={{
-                  color: C.text,
-                  fontSize: 14,
-                  fontWeight: "800",
-                  lineHeight: 18,
-                  marginBottom: 5,
-                }}
-              >
-                {continueItem?.title ?? "Nenhuma leitura"}
-              </Text>
-              <Text style={{ color: C.sub, fontSize: 10, marginBottom: 8 }}>
-                cap. — · —%
-              </Text>
-              <View
-                style={{ height: 4, backgroundColor: C.pinkBar, borderRadius: 2 }}
-              >
+            {continueItem?.cover_url && (
+              <>
+                <Image
+                  source={{ uri: continueItem.cover_url }}
+                  style={{ position: "absolute", width: "100%", height: "100%" }}
+                  contentFit="cover"
+                  transition={300}
+                />
                 <View
                   style={{
-                    height: 4,
-                    backgroundColor: C.pink,
-                    borderRadius: 2,
-                    width: "62%",
+                    position: "absolute",
+                    width: "100%",
+                    height: "100%",
+                    backgroundColor: "rgba(0,0,0,0.45)",
                   }}
                 />
+              </>
+            )}
+            <View style={{ flex: 1, padding: 13, justifyContent: "space-between" }}>
+              <Text
+                style={{
+                  color: continueItem?.cover_url ? "rgba(255,255,255,0.75)" : C.pink,
+                  fontSize: 9,
+                  fontWeight: "900",
+                  letterSpacing: 1.5,
+                  textTransform: "uppercase",
+                }}
+              >
+                Continue
+              </Text>
+              <View>
+                <Text
+                  numberOfLines={2}
+                  style={{
+                    color: continueItem?.cover_url ? "#FFF" : C.text,
+                    fontSize: 14,
+                    fontWeight: "800",
+                    lineHeight: 18,
+                    marginBottom: 5,
+                  }}
+                >
+                  {continueItem?.title ?? "Nenhuma leitura"}
+                </Text>
+                <Text
+                  style={{
+                    color: continueItem?.cover_url ? "rgba(255,255,255,0.75)" : C.sub,
+                    fontSize: 10,
+                    marginBottom: 8,
+                  }}
+                >
+                  cap. — · —%
+                </Text>
+                <View
+                  style={{ height: 4, backgroundColor: C.pinkBar, borderRadius: 2 }}
+                >
+                  <View
+                    style={{
+                      height: 4,
+                      backgroundColor: C.pink,
+                      borderRadius: 2,
+                      width: "62%",
+                    }}
+                  />
+                </View>
               </View>
             </View>
           </Pressable>

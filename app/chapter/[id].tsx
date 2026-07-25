@@ -93,11 +93,19 @@ export default function ChapterReaderScreen() {
 
   // Se as imagens de várias páginas falharem, o nó MD@Home atribuído pelo
   // backend provavelmente está indisponível — força uma nova atribuição.
+  // A MangaDex às vezes devolve o MESMO baseUrl mesmo com refresh=true (nó
+  // "pinado"), então o que garante uma nova tentativa não é a URL mudar, e
+  // sim remontar as páginas (refreshGeneration na key) para tentar de novo.
   const [forceRefresh, setForceRefresh] = useState(false);
+  const [refreshGeneration, setRefreshGeneration] = useState(0);
   const refreshTriggeredRef = useRef(false);
+  const refreshAttemptsRef = useRef(0);
+  const MAX_AUTO_REFRESHES = 2;
 
   useEffect(() => {
     refreshTriggeredRef.current = false;
+    refreshAttemptsRef.current = 0;
+    setRefreshGeneration(0);
   }, [id]);
 
   const { data: chapter, isLoading, isError, refetch } = useQuery({
@@ -108,15 +116,20 @@ export default function ChapterReaderScreen() {
 
   useEffect(() => {
     if (forceRefresh) {
-      refetch().finally(() => setForceRefresh(false));
+      refetch().finally(() => {
+        setForceRefresh(false);
+        refreshTriggeredRef.current = false;
+        setRefreshGeneration((g) => g + 1);
+      });
     }
   }, [forceRefresh]);
 
   function handlePersistentPageFailure() {
-    if (isMdex && !refreshTriggeredRef.current) {
-      refreshTriggeredRef.current = true;
-      setForceRefresh(true);
-    }
+    if (!isMdex || refreshTriggeredRef.current) return;
+    if (refreshAttemptsRef.current >= MAX_AUTO_REFRESHES) return;
+    refreshTriggeredRef.current = true;
+    refreshAttemptsRef.current += 1;
+    setForceRefresh(true);
   }
 
   // Busca a lista de capítulos do mangá para derivar prev/next.
@@ -232,7 +245,7 @@ export default function ChapterReaderScreen() {
       ) : (
         <FlatList
           data={pages}
-          keyExtractor={(p, i) => String(p.id ?? p.number ?? i)}
+          keyExtractor={(p, i) => `${p.id ?? p.number ?? i}-${refreshGeneration}`}
           renderItem={({ item }) => (
             <PageImage page={item} onPersistentFailure={handlePersistentPageFailure} />
           )}
