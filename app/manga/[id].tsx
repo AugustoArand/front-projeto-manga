@@ -7,10 +7,9 @@ import {
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   getManga,
   getMdexManga,
@@ -21,6 +20,7 @@ import {
   STATUS_LABELS,
 } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
+import { CoverImage } from "@/components/CoverImage";
 
 interface Chapter {
   id: string | number;
@@ -33,6 +33,8 @@ interface Chapter {
 
 const STATUS_OPTIONS = Object.entries(STATUS_LABELS) as [NonNullable<ReadingStatus>, string][];
 
+const CHAPTERS_PAGE_SIZE = 50;
+
 export default function MangaDetailScreen() {
   const { id }             = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated } = useAuth();
@@ -40,6 +42,7 @@ export default function MangaDetailScreen() {
 
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [currentStatus, setCurrentStatus]           = useState<ReadingStatus>(null);
+  const [chapterPage, setChapterPage]               = useState(0);
 
   const mdex = isMdexId(id ?? "");
 
@@ -62,6 +65,10 @@ export default function MangaDetailScreen() {
     mutationFn: () => followManga(id!),
   });
 
+  useEffect(() => {
+    setChapterPage(0);
+  }, [id]);
+
   if (isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: "#0D0D0F", justifyContent: "center", alignItems: "center" }}>
@@ -79,6 +86,11 @@ export default function MangaDetailScreen() {
   }
 
   const chapters: Chapter[] = manga.chapters ?? [];
+  const pageCount = Math.max(1, Math.ceil(chapters.length / CHAPTERS_PAGE_SIZE));
+  const pagedChapters = chapters.slice(
+    chapterPage * CHAPTERS_PAGE_SIZE,
+    (chapterPage + 1) * CHAPTERS_PAGE_SIZE
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0D0D0F" }}>
@@ -93,11 +105,7 @@ export default function MangaDetailScreen() {
 
         {/* Cover + Info */}
         <View style={{ flexDirection: "row", padding: 16, gap: 16 }}>
-          <Image
-            source={manga.cover_url ? { uri: manga.cover_url } : undefined}
-            style={{ width: 130, height: 185, borderRadius: 10 }}
-            contentFit="cover"
-          />
+          <CoverImage uri={manga.cover_url} style={{ width: 130, height: 185, borderRadius: 10 }} />
           <View style={{ flex: 1, gap: 6 }}>
             <Text style={{ color: "#FFFFFF", fontSize: 18, fontWeight: "800", lineHeight: 24 }}>
               {manga.title}
@@ -178,7 +186,7 @@ export default function MangaDetailScreen() {
           <Text style={{ color: "#E040FB", fontSize: 16, fontWeight: "800", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>
             Capítulos ({chapters.length})
           </Text>
-          {chapters.map((ch) => (
+          {pagedChapters.map((ch) => (
             <Pressable
               key={ch.id}
               onPress={() => router.push({ pathname: "/chapter/[id]", params: { id: String(ch.id), mangaId: String(manga.id), source: mdex ? "mdex" : "local" } })}
@@ -198,6 +206,35 @@ export default function MangaDetailScreen() {
               <Text style={{ color: "#4B5563" }}>›</Text>
             </Pressable>
           ))}
+
+          {pageCount > 1 && (
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                paddingVertical: 16,
+              }}
+            >
+              <Pressable
+                disabled={chapterPage === 0}
+                onPress={() => setChapterPage((p) => Math.max(0, p - 1))}
+                style={{ opacity: chapterPage === 0 ? 0.3 : 1 }}
+              >
+                <Text style={{ color: "#E040FB", fontSize: 14 }}>‹ Anterior</Text>
+              </Pressable>
+              <Text style={{ color: "#6B7280", fontSize: 12 }}>
+                Página {chapterPage + 1} de {pageCount}
+              </Text>
+              <Pressable
+                disabled={chapterPage >= pageCount - 1}
+                onPress={() => setChapterPage((p) => Math.min(pageCount - 1, p + 1))}
+                style={{ opacity: chapterPage >= pageCount - 1 ? 0.3 : 1 }}
+              >
+                <Text style={{ color: "#E040FB", fontSize: 14 }}>Próxima ›</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </ScrollView>
 

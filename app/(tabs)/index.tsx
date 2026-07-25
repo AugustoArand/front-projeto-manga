@@ -8,10 +8,10 @@ import {
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { getExplore } from "@/services/api";
+import { CoverImage } from "@/components/CoverImage";
 
 const { width: W } = Dimensions.get("window");
 const PAD = 16;
@@ -182,11 +182,9 @@ function HeroSection({
             backgroundColor: C.darkCard,
           }}
         >
-          <Image
-            source={{ uri: featured?.cover_url ?? undefined }}
+          <CoverImage
+            uri={featured?.cover_url}
             style={{ position: "absolute", width: "100%", height: "100%" }}
-            contentFit="cover"
-            transition={400}
           />
           <View
             style={{
@@ -265,11 +263,9 @@ function HeroSection({
           >
             {continueItem?.cover_url && (
               <>
-                <Image
-                  source={{ uri: continueItem.cover_url }}
+                <CoverImage
+                  uri={continueItem.cover_url}
                   style={{ position: "absolute", width: "100%", height: "100%" }}
-                  contentFit="cover"
-                  transition={300}
                 />
                 <View
                   style={{
@@ -449,12 +445,7 @@ function LatestCard({ item, index }: { item: any; index: number }) {
           marginBottom: 8,
         }}
       >
-        <Image
-          source={{ uri: item.cover_url ?? undefined }}
-          style={{ width: "100%", height: "100%" }}
-          contentFit="cover"
-          transition={200}
-        />
+        <CoverImage uri={item.cover_url} style={{ width: "100%", height: "100%" }} />
         <View
           style={{
             position: "absolute",

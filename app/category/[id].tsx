@@ -1,9 +1,9 @@
 import { View, Text, FlatList, Pressable, ActivityIndicator, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { getCategory } from "@/services/api";
+import { CoverImage } from "@/components/CoverImage";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -69,12 +69,9 @@ export default function CategoryScreen() {
             onPress={() => router.push({ pathname: "/manga/[id]", params: { id: item.id } })}
             style={{ width: CARD_WIDTH }}
           >
-            <Image
-              source={{ uri: item.cover_url ?? undefined }}
+            <CoverImage
+              uri={item.cover_url}
               style={{ width: CARD_WIDTH, height: CARD_WIDTH * 1.42, borderRadius: 8 }}
-              contentFit="cover"
-              placeholder={{ color: "#1A1A24" }}
-              transition={200}
             />
             <Text
               numberOfLines={2}

@@ -4,10 +4,10 @@ import {
   Pressable, ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { searchMdex } from "@/services/api";
+import { CoverImage } from "@/components/CoverImage";
 
 interface MdexManga {
   id: string;
@@ -124,11 +124,7 @@ export default function SearchScreen() {
               }}
             >
               {/* Capa */}
-              <Image
-                source={item.cover_url ? { uri: item.cover_url } : undefined}
-                style={{ width: 52, height: 74, borderRadius: 6 }}
-                contentFit="cover"
-              />
+              <CoverImage uri={item.cover_url} style={{ width: 52, height: 74, borderRadius: 6 }} />
 
               {/* Info */}
               <View style={{ flex: 1, gap: 4 }}>

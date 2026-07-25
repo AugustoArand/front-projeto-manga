@@ -1,9 +1,9 @@
 import { View, Text, FlatList, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { getHistory } from "@/services/api";
+import { CoverImage } from "@/components/CoverImage";
 
 interface HistoryEntry {
   id: number;
@@ -86,12 +86,7 @@ export default function HistoryScreen() {
               gap: 12,
             }}
           >
-            <Image
-              source={{ uri: item.cover_url ?? undefined }}
-              style={{ width: 52, height: 72, borderRadius: 6 }}
-              contentFit="cover"
-              placeholder={{ color: "#1A1A24" }}
-            />
+            <CoverImage uri={item.cover_url} style={{ width: 52, height: 72, borderRadius: 6 }} />
             <View style={{ flex: 1 }}>
               <Text numberOfLines={2} style={{ color: "#E5E7EB", fontSize: 14, fontWeight: "600" }}>
                 {item.title}
