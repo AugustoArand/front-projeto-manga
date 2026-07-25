@@ -83,13 +83,15 @@ function normalizePages(data: any, source: string): Page[] {
 }
 
 export default function ChapterReaderScreen() {
-  const { id, mangaId, source } = useLocalSearchParams<{
+  const { id, mangaId, source, lang } = useLocalSearchParams<{
     id: string;
     mangaId: string;
     source?: string;
+    lang?: string;
   }>();
 
   const isMdex = source === "mdex";
+  const chapterLang = lang ?? "pt-br";
 
   // Se as imagens de várias páginas falharem, o nó MD@Home atribuído pelo
   // backend provavelmente está indisponível — força uma nova atribuição.
@@ -135,8 +137,8 @@ export default function ChapterReaderScreen() {
   // Busca a lista de capítulos do mangá para derivar prev/next.
   // Normalmente é cache hit pois o usuário veio da tela de detalhe.
   const { data: mangaData } = useQuery({
-    queryKey: ["manga", mangaId],
-    queryFn:  () => getMdexManga(mangaId!),
+    queryKey: ["manga", mangaId, chapterLang],
+    queryFn:  () => getMdexManga(mangaId!, chapterLang),
     enabled:  isMdex && !!mangaId,
     staleTime: 15 * 60 * 1000,
   });
@@ -183,7 +185,7 @@ export default function ChapterReaderScreen() {
     if (isMdex && prevMdexChapter) {
       router.replace({
         pathname: "/chapter/[id]",
-        params: { id: String(prevMdexChapter.id), mangaId: String(mangaId), source: "mdex" },
+        params: { id: String(prevMdexChapter.id), mangaId: String(mangaId), source: "mdex", lang: chapterLang },
       });
     } else if (!isMdex && chapter.prev_chapter_id) {
       router.replace({
@@ -197,7 +199,7 @@ export default function ChapterReaderScreen() {
     if (isMdex && nextMdexChapter) {
       router.replace({
         pathname: "/chapter/[id]",
-        params: { id: String(nextMdexChapter.id), mangaId: String(mangaId), source: "mdex" },
+        params: { id: String(nextMdexChapter.id), mangaId: String(mangaId), source: "mdex", lang: chapterLang },
       });
     } else if (!isMdex && chapter.next_chapter_id) {
       router.replace({

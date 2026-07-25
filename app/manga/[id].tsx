@@ -35,6 +35,11 @@ const STATUS_OPTIONS = Object.entries(STATUS_LABELS) as [NonNullable<ReadingStat
 
 const CHAPTERS_PAGE_SIZE = 50;
 
+const CHAPTER_LANGUAGES: { value: string; label: string }[] = [
+  { value: "pt-br", label: "PT" },
+  { value: "en", label: "EN" },
+];
+
 export default function MangaDetailScreen() {
   const { id }             = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated } = useAuth();
@@ -43,12 +48,13 @@ export default function MangaDetailScreen() {
   const [statusModalVisible, setStatusModalVisible] = useState(false);
   const [currentStatus, setCurrentStatus]           = useState<ReadingStatus>(null);
   const [chapterPage, setChapterPage]               = useState(0);
+  const [chapterLang, setChapterLang]               = useState("pt-br");
 
   const mdex = isMdexId(id ?? "");
 
   const { data: manga, isLoading, isError } = useQuery({
-    queryKey: ["manga", id],
-    queryFn:  () => mdex ? getMdexManga(id!) : getManga(id!),
+    queryKey: ["manga", id, mdex ? chapterLang : null],
+    queryFn:  () => mdex ? getMdexManga(id!, chapterLang) : getManga(id!),
     enabled:  !!id,
   });
 
@@ -67,7 +73,7 @@ export default function MangaDetailScreen() {
 
   useEffect(() => {
     setChapterPage(0);
-  }, [id]);
+  }, [id, chapterLang]);
 
   if (isLoading) {
     return (
@@ -183,13 +189,59 @@ export default function MangaDetailScreen() {
 
         {/* Chapters */}
         <View style={{ paddingHorizontal: 16 }}>
-          <Text style={{ color: "#E040FB", fontSize: 16, fontWeight: "800", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12 }}>
-            Capítulos ({chapters.length})
-          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 12,
+            }}
+          >
+            <Text style={{ color: "#E040FB", fontSize: 16, fontWeight: "800", letterSpacing: 1.5, textTransform: "uppercase" }}>
+              Capítulos ({chapters.length})
+            </Text>
+
+            {mdex && (
+              <View style={{ flexDirection: "row", backgroundColor: "#1A1A24", borderRadius: 8, padding: 2 }}>
+                {CHAPTER_LANGUAGES.map((opt) => {
+                  const active = chapterLang === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => setChapterLang(opt.value)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 5,
+                        borderRadius: 6,
+                        backgroundColor: active ? "#E040FB" : "transparent",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: active ? "#0D0D0F" : "#9CA3AF",
+                          fontSize: 12,
+                          fontWeight: "700",
+                        }}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {!isLoading && mdex && chapters.length === 0 && (
+            <Text style={{ color: "#6B7280", fontSize: 12, marginBottom: 12 }}>
+              Nenhum capítulo encontrado nesse idioma — tente o outro.
+            </Text>
+          )}
+
           {pagedChapters.map((ch) => (
             <Pressable
               key={ch.id}
-              onPress={() => router.push({ pathname: "/chapter/[id]", params: { id: String(ch.id), mangaId: String(manga.id), source: mdex ? "mdex" : "local" } })}
+              onPress={() => router.push({ pathname: "/chapter/[id]", params: { id: String(ch.id), mangaId: String(manga.id), source: mdex ? "mdex" : "local", lang: chapterLang } })}
               style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomColor: "#1A1A24", borderBottomWidth: 1 }}
             >
               <View>
