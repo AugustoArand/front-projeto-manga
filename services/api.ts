@@ -11,6 +11,79 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+// ── Auth MangaDex — refresh automático de token ─────────────────────────────
+// O access token da MangaDex expira a cada 15min. Guardamos o refresh token
+// aqui (fora do React) para que o interceptor consiga renová-lo sozinho
+// quando qualquer request autenticado receber 401, sem precisar que cada
+// tela trate isso manualmente.
+let mdexRefreshToken: string | null = null;
+let refreshingPromise: Promise<string | null> | null = null;
+
+// AuthContext se inscreve aqui para manter seu estado em sincronia sempre
+// que o token mudar — inclusive quando o interceptor renova sozinho em
+// segundo plano. Sem isso, o refresh token guardado no React ficaria
+// desatualizado (a MangaDex rotaciona o refresh token a cada renovação).
+type MdexTokenListener = (accessToken: string, refreshTokenValue: string) => void;
+let mdexTokenListener: MdexTokenListener | null = null;
+
+export function onMdexTokenChange(listener: MdexTokenListener | null) {
+  mdexTokenListener = listener;
+}
+
+export function setMdexTokens(accessToken: string, refreshTokenValue: string) {
+  mdexRefreshToken = refreshTokenValue;
+  api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+  mdexTokenListener?.(accessToken, refreshTokenValue);
+}
+
+export function clearMdexTokens() {
+  mdexRefreshToken = null;
+  delete api.defaults.headers.common["Authorization"];
+}
+
+async function refreshMdexAccessToken(): Promise<string | null> {
+  if (!mdexRefreshToken) return null;
+  try {
+    const data = await refreshToken(mdexRefreshToken);
+    setMdexTokens(data.access_token, data.refresh_token);
+    return data.access_token;
+  } catch {
+    clearMdexTokens();
+    return null;
+  }
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    const status = error.response?.status;
+    // Só tenta renovar se o request original usava o token MangaDex
+    // (Authorization: Bearer) — endpoints da conta MangaVerse usam
+    // X-User-Token e não devem disparar esse fluxo.
+    const hadMdexAuth = !!original?.headers?.Authorization;
+    const isRefreshCall = original?.url?.includes("/auth/refresh");
+
+    if (status === 401 && hadMdexAuth && !isRefreshCall && !original._retry) {
+      original._retry = true;
+
+      if (!refreshingPromise) {
+        refreshingPromise = refreshMdexAccessToken().finally(() => {
+          refreshingPromise = null;
+        });
+      }
+
+      const newAccessToken = await refreshingPromise;
+      if (newAccessToken) {
+        original.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(original);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 // ── Explore ───────────────────────────────────────────────────────────────────
 
 export const getExplore = () =>
@@ -60,8 +133,10 @@ export const searchMdex = (query: string) =>
 export const getMdexManga = (id: string, lang = "pt-br") =>
   api.get(`/mdex/manga/${id}`, { params: { lang } }).then((r) => r.data);
 
-export const getMdexChapter = (id: string, dataSaver = false) =>
-  api.get(`/mdex/chapter/${id}`, { params: { data_saver: dataSaver } }).then((r) => r.data);
+export const getMdexChapter = (id: string, dataSaver = false, refresh = false) =>
+  api
+    .get(`/mdex/chapter/${id}`, { params: { data_saver: dataSaver, refresh: refresh || undefined } })
+    .then((r) => r.data);
 
 // ── Auth MangaVerse (contas próprias) ────────────────────────────────────────
 

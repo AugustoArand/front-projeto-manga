@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { View, Text, FlatList, Pressable, ActivityIndicator, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -12,6 +13,63 @@ interface Page {
   number: number;
   image_url?: string | null;
   filename?: string;
+}
+
+const MAX_PAGE_ATTEMPTS = 2;
+
+/** Uma página do leitor. Tenta recarregar a imagem antes de mostrar erro,
+ * já que o servidor MD@Home atribuído pode estar temporariamente instável. */
+function PageImage({ page, onPersistentFailure }: { page: Page; onPersistentFailure: () => void }) {
+  const [attempt, setAttempt] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setAttempt(0);
+    setFailed(false);
+  }, [page.image_url]);
+
+  if (!page.image_url || failed) {
+    return (
+      <View
+        style={{
+          width: SCREEN_WIDTH,
+          height: SCREEN_WIDTH * 1.5,
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <Text style={{ color: "#6B7280", fontSize: 13 }}>Falha ao carregar a página {page.number}</Text>
+        <Pressable
+          onPress={() => {
+            setAttempt(0);
+            setFailed(false);
+          }}
+        >
+          <Text style={{ color: "#E040FB", fontSize: 13 }}>Tentar novamente</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const uri = attempt === 0 ? page.image_url : `${page.image_url}${page.image_url.includes("?") ? "&" : "?"}retry=${attempt}`;
+
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH * 1.5 }}
+      contentFit="contain"
+      transition={150}
+      onError={() => {
+        if (attempt + 1 >= MAX_PAGE_ATTEMPTS) {
+          setFailed(true);
+          onPersistentFailure();
+        } else {
+          setAttempt((a) => a + 1);
+        }
+      }}
+    />
+  );
 }
 
 function normalizePages(data: any, source: string): Page[] {
@@ -33,11 +91,33 @@ export default function ChapterReaderScreen() {
 
   const isMdex = source === "mdex";
 
-  const { data: chapter, isLoading, isError } = useQuery({
+  // Se as imagens de várias páginas falharem, o nó MD@Home atribuído pelo
+  // backend provavelmente está indisponível — força uma nova atribuição.
+  const [forceRefresh, setForceRefresh] = useState(false);
+  const refreshTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    refreshTriggeredRef.current = false;
+  }, [id]);
+
+  const { data: chapter, isLoading, isError, refetch } = useQuery({
     queryKey: ["chapter", id, source],
-    queryFn:  () => isMdex ? getMdexChapter(id!) : getChapter(mangaId!, id!),
+    queryFn:  () => isMdex ? getMdexChapter(id!, false, forceRefresh) : getChapter(mangaId!, id!),
     enabled:  !!id,
   });
+
+  useEffect(() => {
+    if (forceRefresh) {
+      refetch().finally(() => setForceRefresh(false));
+    }
+  }, [forceRefresh]);
+
+  function handlePersistentPageFailure() {
+    if (isMdex && !refreshTriggeredRef.current) {
+      refreshTriggeredRef.current = true;
+      setForceRefresh(true);
+    }
+  }
 
   // Busca a lista de capítulos do mangá para derivar prev/next.
   // Normalmente é cache hit pois o usuário veio da tela de detalhe.
@@ -154,12 +234,7 @@ export default function ChapterReaderScreen() {
           data={pages}
           keyExtractor={(p, i) => String(p.id ?? p.number ?? i)}
           renderItem={({ item }) => (
-            <Image
-              source={{ uri: item.image_url ?? undefined }}
-              style={{ width: SCREEN_WIDTH, height: SCREEN_WIDTH * 1.5 }}
-              contentFit="contain"
-              transition={150}
-            />
+            <PageImage page={item} onPersistentFailure={handlePersistentPageFailure} />
           )}
           showsVerticalScrollIndicator={false}
         />
