@@ -11,6 +11,13 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+
+        {/* Sem isso, o browser manda "Referer: https://<nosso-domínio>/" em
+            toda imagem cross-origin — e o CDN de capas do MangaDex trata
+            qualquer referer que não seja mangadex.org como hotlink não
+            autorizado, devolvendo um banner genérico "leia no MangaDex" no
+            lugar da capa real. */}
+        <meta name="referrer" content="no-referrer" />
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, shrink-to-fit=no"
