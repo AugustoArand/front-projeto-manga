@@ -1,7 +1,9 @@
-import { View, Text, ScrollView, Pressable, Share } from "react-native";
+import { View, Text, ScrollView, Pressable, Share, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useState } from "react";
+import { useUserAuth } from "@/context/UserAuthContext";
+import { subscribePlan } from "@/services/api";
 
 const C = {
   bg: "#F7F3ED",
@@ -25,14 +27,36 @@ const PLANS = [
 const PIX_KEY = "mangaverse@pix.com.br";
 
 export default function PlansScreen() {
+  const { refreshUser } = useUserAuth();
   const [selected, setSelected] = useState("anual");
   const [showPix, setShowPix] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
 
   function handleCopy() {
     Share.share({ message: PIX_KEY });
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  }
+
+  // Ainda não existe gateway de pagamento real integrado — isso simula a
+  // confirmação e já ativa o VIP de verdade no backend. Quando plugar um
+  // gateway de verdade, essa chamada vira o resultado do webhook dele.
+  async function handleConfirmPayment() {
+    setConfirming(true);
+    try {
+      await subscribePlan();
+      await refreshUser();
+      setConfirmed(true);
+      setTimeout(() => {
+        setShowPix(false);
+        setConfirmed(false);
+        router.canGoBack() ? router.back() : router.replace("/(tabs)");
+      }, 1200);
+    } finally {
+      setConfirming(false);
+    }
   }
 
   return (
@@ -217,6 +241,27 @@ export default function PlansScreen() {
                 </Text>
               </Pressable>
             </View>
+
+            <Pressable
+              onPress={handleConfirmPayment}
+              disabled={confirming || confirmed}
+              style={{
+                backgroundColor: confirmed ? "#059669" : C.pink,
+                borderRadius: 12,
+                padding: 14,
+                alignItems: "center",
+                marginBottom: 10,
+                opacity: confirming ? 0.7 : 1,
+              }}
+            >
+              {confirming ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}>
+                  {confirmed ? "VIP ativado ✓" : "Já paguei — confirmar"}
+                </Text>
+              )}
+            </Pressable>
 
             <Text style={{ textAlign: "center", fontSize: 11, color: C.sub }}>
               Após o pagamento, seu VIP é ativado em até 5 minutos.

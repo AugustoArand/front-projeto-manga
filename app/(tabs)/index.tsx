@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { getExplore } from "@/services/api";
 import { CoverImage } from "@/components/CoverImage";
+import { useUserAuth } from "@/context/UserAuthContext";
 
 const { width: W } = Dimensions.get("window");
 const PAD = 16;
@@ -129,7 +130,7 @@ function Header() {
 
 // ── Saudação ──────────────────────────────────────────────────────────────────
 
-function Greeting({ count }: { count: number }) {
+function Greeting({ name, count }: { name: string; count: number }) {
   return (
     <View
       style={{
@@ -141,12 +142,47 @@ function Greeting({ count }: { count: number }) {
         marginBottom: 20,
       }}
     >
-      <Text style={{ color: C.sub, fontSize: 14 }}>{timeGreeting()}, kira —</Text>
+      <Text style={{ color: C.sub, fontSize: 14 }}>{timeGreeting()}, {name} —</Text>
       <Text style={{ color: C.pink, fontSize: 14, fontWeight: "600" }}>
         {count} capítulos novos
       </Text>
       <Text style={{ color: C.pink, fontSize: 12 }}>♦</Text>
     </View>
+  );
+}
+
+// ── Faixa do teste grátis ────────────────────────────────────────────────────
+
+function TrialBanner({ vip, daysLeft }: { vip: boolean; daysLeft: number }) {
+  if (vip) return null;
+  const expired = daysLeft <= 0;
+
+  return (
+    <Pressable
+      onPress={() => router.push("/plans")}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginHorizontal: PAD,
+        marginBottom: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: expired ? "#FDEAEA" : C.pinkBg,
+        borderWidth: 1,
+        borderColor: expired ? "#F3B8B8" : C.pinkBar,
+      }}
+    >
+      <Text style={{ color: expired ? "#B91C1C" : C.pink, fontSize: 12, fontWeight: "700", flex: 1 }}>
+        {expired
+          ? "Seu teste grátis acabou — assine para continuar lendo"
+          : `${daysLeft} ${daysLeft === 1 ? "dia restante" : "dias restantes"} no teste grátis`}
+      </Text>
+      <Text style={{ color: expired ? "#B91C1C" : C.pink, fontSize: 12, fontWeight: "700" }}>
+        {expired ? "assinar →" : "ver planos →"}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -309,7 +345,7 @@ function HeroSection({
                     marginBottom: 8,
                   }}
                 >
-                  cap. — · —%
+                  {continueItem?.chapter_label ?? "cap. —"}
                 </Text>
                 <View
                   style={{ height: 4, backgroundColor: C.pinkBar, borderRadius: 2 }}
@@ -475,9 +511,43 @@ function LatestCard({ item, index }: { item: any; index: number }) {
   );
 }
 
+// ── Card de favorito ───────────────────────────────────────────────────────────
+
+function FavoriteCard({ item }: { item: any }) {
+  const id = item.mangadex_id ?? String(item.manga_id);
+  return (
+    <Pressable
+      onPress={() => router.push({ pathname: "/manga/[id]", params: { id } })}
+      style={{ width: LATEST_CARD_W, marginRight: GAP }}
+    >
+      <View
+        style={{
+          width: LATEST_CARD_W,
+          height: LATEST_CARD_W * 1.42,
+          borderRadius: 12,
+          overflow: "hidden",
+          backgroundColor: "#E8E3DB",
+          borderWidth: 1,
+          borderColor: C.border,
+          marginBottom: 8,
+        }}
+      >
+        <CoverImage uri={item.cover_url} style={{ width: "100%", height: "100%" }} />
+      </View>
+      <Text numberOfLines={1} style={{ color: C.text, fontSize: 13, fontWeight: "700" }}>
+        {item.title}
+      </Text>
+      {item.genre && (
+        <Text style={{ color: C.sub, fontSize: 11, marginTop: 2 }}>{item.genre}</Text>
+      )}
+    </Pressable>
+  );
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
+  const { user } = useUserAuth();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["explore"],
     queryFn: getExplore,
@@ -506,6 +576,8 @@ export default function HomeScreen() {
   const popular: any[] = data?.popular ?? [];
   const latest: any[] = data?.latest ?? [];
   const history: any[] = data?.history ?? [];
+  const favorites: any[] = data?.favorites ?? [];
+  const firstName = user?.name?.split(" ")[0] ?? "";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
@@ -514,7 +586,8 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         <Header />
-        <Greeting count={latest.length} />
+        <Greeting name={firstName} count={latest.length} />
+        {user && <TrialBanner vip={user.vip} daysLeft={user.trial_days_left} />}
 
         <HeroSection popular={popular} history={history} latest={latest} />
 
@@ -538,13 +611,32 @@ export default function HomeScreen() {
         </View>
 
         {/* Categorias teaser */}
-        <View style={{ marginBottom: 8 }}>
+        <View style={{ marginBottom: 28 }}>
           <SectionHeader
             emoji="📁"
             title="Categorias"
             onSeeAll={() => router.push("/(tabs)/categories")}
           />
         </View>
+
+        {/* Favoritos */}
+        {favorites.length > 0 && (
+          <View style={{ marginBottom: 8 }}>
+            <SectionHeader
+              emoji="❤️"
+              title="Favoritos"
+              onSeeAll={() => router.push("/favorites")}
+            />
+            <FlatList
+              horizontal
+              data={favorites.slice(0, 10)}
+              keyExtractor={(item) => String(item.id)}
+              renderItem={({ item }) => <FavoriteCard item={item} />}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: PAD }}
+            />
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

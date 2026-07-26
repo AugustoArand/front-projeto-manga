@@ -116,10 +116,36 @@ export interface TrackHistoryPayload {
   title: string;
   cover_url?: string;
   genre?: string;
+  chapter_label?: string;
+  mangadex_chapter_id?: string;
 }
 
 export const trackHistory = (payload: TrackHistoryPayload) =>
   api.post("/reading_histories", { reading_history: payload }).then((r) => r.data);
+
+// ── Favoritos ─────────────────────────────────────────────────────────────────
+
+export interface FavoritePayload {
+  manga_id?: number;
+  mangadex_id?: string;
+  title: string;
+  cover_url?: string;
+  genre?: string;
+}
+
+export const getFavorites = () =>
+  api.get("/favorites").then((r) => r.data);
+
+export const addFavorite = (payload: FavoritePayload) =>
+  api.post("/favorites", { favorite: payload }).then((r) => r.data);
+
+export const removeFavorite = (id: number) =>
+  api.delete(`/favorites/${id}`).then((r) => r.data);
+
+// ── Planos / assinatura ────────────────────────────────────────────────────────
+
+export const subscribePlan = () =>
+  api.post("/plans/subscribe").then((r) => r.data);
 
 // ── MangaDex proxy — leitura direta ──────────────────────────────────────────
 

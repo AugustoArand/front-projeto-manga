@@ -5,7 +5,6 @@ import {
   ActivityIndicator, ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import { useUserAuth } from "@/context/UserAuthContext";
 
 const C = {
@@ -84,8 +83,9 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
+      // Não navega explicitamente — assim que isLoggedIn vira true, o
+      // gate em app/_layout.tsx troca esta tela pelo app normal sozinho.
       await login(identifier.trim(), password);
-      router.replace("/(tabs)");
     } catch (e: any) {
       const msg = e?.response?.data?.error ?? e.message ?? "Erro ao entrar.";
       setErrors([msg]);
@@ -105,7 +105,6 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await register(name.trim(), username.trim(), email.trim(), regPassword, regConfirm);
-      router.replace("/(tabs)");
     } catch (e: any) {
       const msgs = e?.response?.data?.errors ?? [e?.response?.data?.error ?? e.message ?? "Erro ao cadastrar."];
       setErrors(Array.isArray(msgs) ? msgs : [msgs]);
@@ -276,14 +275,6 @@ export default function LoginScreen() {
                     {tab === "login" ? "Entrar" : "Criar conta"}
                   </Text>
               }
-            </Pressable>
-
-            {/* Voltar */}
-            <Pressable
-              onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
-              style={{ alignItems: "center", paddingVertical: 8 }}
-            >
-              <Text style={{ color: C.sub, fontSize: 13 }}>← Continuar sem conta</Text>
             </Pressable>
 
             <View style={{ height: 24 }} />

@@ -12,6 +12,7 @@ interface HistoryEntry {
   genre: string | null;
   manga_id: number | null;
   mangadex_id: string | null;
+  chapter_label: string | null;
   updated_at: string;
 }
 
@@ -91,6 +92,11 @@ export default function HistoryScreen() {
               <Text numberOfLines={2} style={{ color: "#E5E7EB", fontSize: 14, fontWeight: "600" }}>
                 {item.title}
               </Text>
+              {item.chapter_label && (
+                <Text style={{ color: "#E040FB", fontSize: 12, marginTop: 2, fontWeight: "600" }}>
+                  {item.chapter_label}
+                </Text>
+              )}
               {item.genre && (
                 <Text style={{ color: "#9CA3AF", fontSize: 12, marginTop: 2 }}>{item.genre}</Text>
               )}

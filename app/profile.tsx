@@ -1,7 +1,9 @@
 import { View, Text, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { useUserAuth } from "@/context/UserAuthContext";
+import { getFavorites } from "@/services/api";
 
 const C = {
   bg: "#F7F3ED", card: "#FFFFFF", pink: "#E8186D",
@@ -55,10 +57,16 @@ function GuestView() {
 export default function ProfileScreen() {
   const { user, isLoggedIn, logout } = useUserAuth();
 
+  const { data: favorites } = useQuery({
+    queryKey: ["favorites"],
+    queryFn: getFavorites,
+    enabled: isLoggedIn,
+  });
+
   if (!isLoggedIn || !user) return <GuestView />;
 
   const stats = {
-    favoritos:      0,
+    favoritos:      favorites?.length ?? 0,
     concluidos:     0,
     concluidosMes:  0,
     paginas:        0,
@@ -127,7 +135,10 @@ export default function ProfileScreen() {
               )}
               {!user.vip && (
                 <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 10 }}>
-                  membro desde {user.member_since}
+                  membro desde {user.member_since} ·{" "}
+                  {user.trial_days_left > 0
+                    ? `${user.trial_days_left} ${user.trial_days_left === 1 ? "dia restante" : "dias restantes"} no teste`
+                    : "teste grátis encerrado"}
                 </Text>
               )}
               <View style={{ flexDirection: "row", gap: 8 }}>

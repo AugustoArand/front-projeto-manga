@@ -17,6 +17,8 @@ export interface AppUser {
   avatar_color: string;
   initials: string;
   member_since: number;
+  trial_ends_at: string;
+  trial_days_left: number;
 }
 
 interface UserAuthState {

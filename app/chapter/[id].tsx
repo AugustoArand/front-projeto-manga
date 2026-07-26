@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
-import { getChapter, getMdexChapter, getMdexManga } from "@/services/api";
+import { getChapter, getMdexChapter, getMdexManga, trackHistory } from "@/services/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -110,7 +110,7 @@ export default function ChapterReaderScreen() {
     setRefreshGeneration(0);
   }, [id]);
 
-  const { data: chapter, isLoading, isError, refetch } = useQuery({
+  const { data: chapter, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["chapter", id, source],
     queryFn:  () => isMdex ? getMdexChapter(id!, false, forceRefresh) : getChapter(mangaId!, id!),
     enabled:  !!id,
@@ -150,10 +150,52 @@ export default function ChapterReaderScreen() {
     ? mdexChapters[currentIndex + 1]
     : null;
 
+  // Registra o capítulo no histórico assim que os dados terminam de carregar
+  // (histórico é o que alimenta o card "Continue" da home e a aba Histórico).
+  useEffect(() => {
+    if (!chapter) return;
+    if (isMdex && !mangaData?.title) return;
+
+    trackHistory({
+      mangadex_id: isMdex ? mangaId : undefined,
+      manga_id: isMdex ? undefined : Number(mangaId),
+      title: isMdex ? mangaData!.title : (chapter.manga_title ?? "Mangá"),
+      cover_url: isMdex ? mangaData?.cover_url : chapter.cover_url,
+      genre: isMdex ? mangaData?.tags?.[0] : chapter.genre,
+      chapter_label: isMdex ? `Cap. ${mdexChapters[currentIndex]?.chapter ?? id}` : `Cap. ${chapter.number}`,
+      mangadex_chapter_id: isMdex ? id : undefined,
+    }).catch(() => { /* histórico é best-effort, não trava a leitura */ });
+  }, [id, !!chapter, isMdex, mangaData?.title]);
+
+  const trialExpired = (error as any)?.response?.data?.error === "trial_expired";
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: "#000", justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#E040FB" />
+      </View>
+    );
+  }
+
+  if (trialExpired) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#000", justifyContent: "center", alignItems: "center", gap: 12, paddingHorizontal: 32 }}>
+        <Text style={{ fontSize: 40 }}>👑</Text>
+        <Text style={{ color: "#E5E7EB", fontSize: 17, fontWeight: "800", textAlign: "center" }}>
+          Seu teste grátis acabou
+        </Text>
+        <Text style={{ color: "#6B7280", fontSize: 13, textAlign: "center", lineHeight: 20 }}>
+          Assine um plano para continuar lendo capítulos novos e antigos.
+        </Text>
+        <Pressable
+          onPress={() => router.push("/plans")}
+          style={{ backgroundColor: "#E040FB", borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12, marginTop: 8 }}
+        >
+          <Text style={{ color: "#0D0D0F", fontWeight: "800", fontSize: 14 }}>Ver planos</Text>
+        </Pressable>
+        <Pressable onPress={() => router.back()} style={{ marginTop: 4 }}>
+          <Text style={{ color: "#6B7280", fontSize: 13 }}>← Voltar</Text>
+        </Pressable>
       </View>
     );
   }

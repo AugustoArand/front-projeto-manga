@@ -15,11 +15,14 @@ import {
   getMdexManga,
   isMdexId,
   setReadingStatus,
-  followManga,
   ReadingStatus,
   STATUS_LABELS,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
 } from "@/services/api";
 import { useAuth } from "@/context/AuthContext";
+import { useUserAuth } from "@/context/UserAuthContext";
 import { CoverImage } from "@/components/CoverImage";
 
 interface Chapter {
@@ -43,6 +46,7 @@ const CHAPTER_LANGUAGES: { value: string; label: string }[] = [
 export default function MangaDetailScreen() {
   const { id }             = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated } = useAuth();
+  const { isLoggedIn }      = useUserAuth();
   const queryClient        = useQueryClient();
 
   const [statusModalVisible, setStatusModalVisible] = useState(false);
@@ -67,8 +71,28 @@ export default function MangaDetailScreen() {
     },
   });
 
-  const followMutation = useMutation({
-    mutationFn: () => followManga(id!),
+  const { data: favorites } = useQuery({
+    queryKey: ["favorites"],
+    queryFn: getFavorites,
+    enabled: isLoggedIn,
+  });
+
+  const favorite = favorites?.find((f: any) =>
+    mdex ? f.mangadex_id === id : f.manga_id === Number(id)
+  );
+
+  const favoriteMutation = useMutation({
+    mutationFn: () => {
+      if (favorite) return removeFavorite(favorite.id);
+      return addFavorite({
+        mangadex_id: mdex ? id! : undefined,
+        manga_id: mdex ? undefined : Number(id),
+        title: manga?.title ?? "",
+        cover_url: manga?.cover_url,
+        genre: manga?.genre ?? manga?.tags?.[0],
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["favorites"] }),
   });
 
   useEffect(() => {
@@ -133,10 +157,10 @@ export default function MangaDetailScreen() {
           </View>
         </View>
 
-        {/* ── Ações de leitura (só para autenticados) ── */}
-        {isAuthenticated && (
-          <View style={{ flexDirection: "row", paddingHorizontal: 16, gap: 10, marginBottom: 16 }}>
-            {/* Botão de status */}
+        {/* ── Ações de leitura ── */}
+        <View style={{ flexDirection: "row", paddingHorizontal: 16, gap: 10, marginBottom: 16 }}>
+          {/* Botão de status (requer conta MangaDex vinculada) */}
+          {isAuthenticated && (
             <Pressable
               onPress={() => setStatusModalVisible(true)}
               style={{
@@ -156,27 +180,32 @@ export default function MangaDetailScreen() {
                   </Text>
               }
             </Pressable>
+          )}
 
-            {/* Botão seguir */}
+          {/* Botão favoritar */}
+          {isLoggedIn && (
             <Pressable
-              onPress={() => followMutation.isPending ? null : followMutation.mutate()}
+              onPress={() => favoriteMutation.isPending ? null : favoriteMutation.mutate()}
               style={{
-                backgroundColor: "#1A1A24",
+                flex: isAuthenticated ? undefined : 1,
+                backgroundColor: favorite ? "#E040FB22" : "#1A1A24",
                 borderWidth: 1,
-                borderColor: "#2A2A35",
+                borderColor: favorite ? "#E040FB" : "#2A2A35",
                 borderRadius: 10,
                 paddingVertical: 10,
                 paddingHorizontal: 16,
                 alignItems: "center",
               }}
             >
-              {followMutation.isPending
+              {favoriteMutation.isPending
                 ? <ActivityIndicator size="small" color="#E040FB" />
-                : <Text style={{ color: "#9CA3AF", fontSize: 13 }}>🔔 Seguir</Text>
+                : <Text style={{ color: favorite ? "#E040FB" : "#9CA3AF", fontWeight: favorite ? "700" : "400", fontSize: 13 }}>
+                    {favorite ? "❤ Favoritado" : "🤍 Favoritar"}
+                  </Text>
               }
             </Pressable>
-          </View>
-        )}
+          )}
+        </View>
 
         {/* Description */}
         {manga.description && (

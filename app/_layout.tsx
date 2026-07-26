@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, Text } from "react-native";
+import { ActivityIndicator, Platform, Pressable, Text, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/context/AuthContext";
-import { UserAuthProvider } from "@/context/UserAuthContext";
+import { UserAuthProvider, useUserAuth } from "@/context/UserAuthContext";
 import WebLandingPage from "@/components/WebLandingPage";
+import LoginScreen from "./login";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +97,50 @@ function useIsStandalone() {
   return isStandalone;
 }
 
+/** Conta obrigatória: enquanto não há sessão válida, mostra a tela de
+ * login/cadastro no lugar do app inteiro — sem opção de "continuar sem
+ * conta", já que o teste grátis de 15 dias só existe a partir de uma conta
+ * criada. Fica dentro do UserAuthProvider pra ter acesso a isLoggedIn. */
+function AppShell({
+  updateReady,
+  applyUpdate,
+}: {
+  updateReady: boolean;
+  applyUpdate: () => void;
+}) {
+  const { isLoggedIn, isLoading } = useUserAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#0D0D0F", justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#E040FB" />
+      </View>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return <LoginScreen />;
+  }
+
+  return (
+    <AuthProvider>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#0D0D0F" } }}>
+        <Stack.Screen name="(tabs)"        options={{ headerShown: false }} />
+        <Stack.Screen name="manga/[id]"    options={{ headerShown: false }} />
+        <Stack.Screen name="chapter/[id]"  options={{ headerShown: false }} />
+        <Stack.Screen name="category/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="favorites"     options={{ headerShown: false }} />
+        <Stack.Screen name="profile"       options={{ headerShown: false }} />
+        <Stack.Screen name="plans"         options={{ headerShown: false }} />
+        <Stack.Screen name="login"         options={{ headerShown: false }} />
+        <Stack.Screen name="upload"        options={{ headerShown: false }} />
+      </Stack>
+      {updateReady && <UpdateBanner onPress={applyUpdate} />}
+    </AuthProvider>
+  );
+}
+
 export default function RootLayout() {
   const isStandalone = useIsStandalone();
   const { updateReady, applyUpdate } = useServiceWorkerUpdate();
@@ -109,20 +154,7 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <UserAuthProvider>
-        <AuthProvider>
-          <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#0D0D0F" } }}>
-            <Stack.Screen name="(tabs)"        options={{ headerShown: false }} />
-            <Stack.Screen name="manga/[id]"    options={{ headerShown: false }} />
-            <Stack.Screen name="chapter/[id]"  options={{ headerShown: false }} />
-            <Stack.Screen name="category/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="profile"       options={{ headerShown: false }} />
-            <Stack.Screen name="plans"         options={{ headerShown: false }} />
-            <Stack.Screen name="login"         options={{ headerShown: false }} />
-            <Stack.Screen name="upload"        options={{ headerShown: false }} />
-          </Stack>
-          {updateReady && <UpdateBanner onPress={applyUpdate} />}
-        </AuthProvider>
+        <AppShell updateReady={updateReady} applyUpdate={applyUpdate} />
       </UserAuthProvider>
     </QueryClientProvider>
   );
